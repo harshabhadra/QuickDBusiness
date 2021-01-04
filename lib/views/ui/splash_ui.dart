@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:quickd_business/views/animation/routes.dart';
+import 'package:quickd_business/views/ui/authentication/sign_up_ui.dart';
 import 'package:quickd_business/views/ui/authentication/welcome_ui.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,13 +20,11 @@ class _SplashScreenState extends State<SplashScreen> {
         show = true;
       });
     });
-    Future.delayed(const Duration(milliseconds: 2500), () {
+    Future.delayed(const Duration(milliseconds: 3500), () {
       setState(() {
         SchedulerBinding.instance.addPostFrameCallback((_) {
           Navigator.pushAndRemoveUntil(context,
-              MaterialPageRoute(builder: (context) {
-            return WelcomeScreen();
-          }), (route) => false);
+              PageRoutes.fadeThrough(WelcomeScreen()), (route) => false);
         });
       });
     });
@@ -46,9 +46,9 @@ class _SplashScreenState extends State<SplashScreen> {
                     alignment: Alignment.center,
                     child: AnimatedContainer(
                       curve: Curves.easeIn,
-                      duration: Duration(seconds: 2),
-                      height: show?200:0,
-                      width: show?200.0:0,
+                      duration: Duration(seconds: 3),
+                      height: show ? 200 : 0,
+                      width: show ? 200.0 : 0,
                       child: Image.asset('assets/images/app_logo.png'),
                     ),
                   ),

@@ -1,4 +1,4 @@
-package com.example.quickd_business
+package com.thequickdofficial.quickdbusiness
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -32,6 +32,12 @@ dependencies:
   google_fonts: ^1.1.1
   flutter_svg: ^0.19.1
   firebase_core: "0.5.3"
+  firebase_auth: "^0.18.4+1"
+  mask_text_input_formatter: ^1.1.0
+  firebase_dynamic_links: ^0.5.1
+  email_validator: '^1.0.5'
+  animations: ^1.1.2
+  expandable: ^4.1.4
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +60,9 @@ flutter:
     - assets/images/app_logo.png
     - assets/images/log_in_bg.png
     - assets/images/restaurant.svg
+    - assets/images/login.svg
+    - assets/images/profile_details.svg
+    - assets/images/sign_up_bg.png
     - assets/google_fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see

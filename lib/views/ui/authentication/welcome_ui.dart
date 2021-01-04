@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:quickd_business/views/animation/routes.dart';
+import 'package:quickd_business/views/ui/authentication/log_in_ui.dart';
 import 'package:quickd_business/views/ui/authentication/sign_up_ui.dart';
+import 'package:animations/animations.dart';
 
 class WelcomeScreen extends StatefulWidget {
   WelcomeScreen({Key key}) : super(key: key);
@@ -68,7 +71,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(24))),
                       color: Colors.deepPurple,
-                      onPressed: () {},
+                      onPressed: () {
+                        loginUi(context, MediaQuery.of(context).size);
+                      },
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Text(
@@ -81,31 +86,40 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                     ),
                   ),
-                  Container(
-                    width: MediaQuery.of(context).size.width,
-                    margin: EdgeInsets.fromLTRB(32, 0, 32, 16),
-                    child: RaisedButton(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(24))),
-                      color: Colors.white,
-                      onPressed: () {
-                        Navigator.of(context)
-                            .push(MaterialPageRoute(builder: (context) {
-                          return SignUpScreen();
-                        }));
+                  OpenContainer(
+                      transitionType: ContainerTransitionType.fade,
+                      transitionDuration: Duration(seconds: 1),
+                      closedBuilder: (_, openContainer) {
+                        return Container(
+                          width: MediaQuery.of(context).size.width,
+                          margin: EdgeInsets.fromLTRB(32, 0, 32, 32),
+                          child: RaisedButton(
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(24))),
+                            color: Colors.white,
+                            onPressed: () {
+                              openContainer();
+                            },
+                            child: Container(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(
+                                  'Create Account',
+                                  style: GoogleFonts.openSans(
+                                      textStyle:
+                                          Theme.of(context).textTheme.button,
+                                      color: Colors.deepPurple,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          'Create Account',
-                          style: GoogleFonts.openSans(
-                              textStyle: Theme.of(context).textTheme.button,
-                              color: Colors.deepPurple,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ),
+                      openBuilder: (_, closeContainer) {
+                        return SignUpScreen();
+                      }),
                 ],
               )
             ],
