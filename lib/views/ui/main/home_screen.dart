@@ -1,9 +1,21 @@
 import 'package:animations/animations.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:expandable/expandable.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive/hive.dart';
+import 'package:lottie/lottie.dart';
+import 'package:quickd_business/bloc/home_bloc.dart';
+import 'package:quickd_business/model/user_details.dart';
 import 'package:quickd_business/utils/Constants.dart';
+import 'package:quickd_business/views/animation/routes.dart';
+import 'package:quickd_business/views/ui/authentication/registration_ui.dart';
 import 'package:quickd_business/views/ui/main/add_product_ui.dart';
+import 'package:quickd_business/views/ui/main/my_products.dart';
+import 'package:quickd_business/views/ui/main/profile_ui.dart';
+import 'package:quickd_business/views/ui/splash_ui.dart';
 
 class HomeScreen extends StatefulWidget {
   HomeScreen({Key key}) : super(key: key);
@@ -13,6 +25,29 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  var box = Hive.box('docs');
+  String email;
+  UserDetails _userDetails;
+  String _name = '';
+  String _nChrac = '';
+  bool isProfileCompleted = true;
+  final bloc = HomeBloc();
+  @override
+  void initState() {
+    email = box.get('email');
+    print('docid: $email');
+    super.initState();
+  }
+
+  void _signOutUser() async {
+    await FirebaseAuth.instance.signOut();
+    box.delete('email');
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushAndRemoveUntil(
+          context, PageRoutes.fadeThrough(SplashScreen()), (route) => false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,40 +58,55 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Icon(Icons.notifications),
+            ),
+            IconButton(
+              icon: Icon(Icons.login_outlined),
+              onPressed: () {
+                _signOutUser();
+              },
             )
           ],
         ),
         floatingActionButton: OpenContainer(
           openColor: Colors.white,
           closedColor: Colors.white,
-          closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+          closedShape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
           transitionDuration: Duration(milliseconds: 750),
           closedBuilder: (context, openContainer) {
             return FloatingActionButton(
               onPressed: () {
-                openContainer();
+                if (isProfileCompleted) {
+                  openContainer();
+                }
               },
               child: Icon(Icons.add),
             );
           },
           openBuilder: (context, _) {
-            return AddProductScreen();
+            return AddProductScreen(
+              userDetails: _userDetails,
+            );
           },
         ),
         drawer: Drawer(
           child: ListView(
             children: [
               UserAccountsDrawerHeader(
+                onDetailsPressed: () {
+                  Navigator.of(context).pop();
+                  _goToProfile();
+                },
                 decoration: BoxDecoration(
                     color: kPrimaryColor,
                     borderRadius: BorderRadius.only(
                         bottomRight: Radius.circular(32),
                         bottomLeft: Radius.circular(32))),
-                accountName: Text('Harsha Bhadra'),
-                accountEmail: Text('harshasharkey@gmailcom'),
+                accountName: Text(_name),
+                accountEmail: Text(email),
                 currentAccountPicture: CircleAvatar(
                   backgroundColor: Colors.white,
-                  child: Text('HB'),
+                  child: Text(_nChrac),
                 ),
               ),
               ListTile(
@@ -81,7 +131,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   trailing: Icon(
                     Icons.list,
                   ),
-                  onTap: () {}),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    if (isProfileCompleted) {
+                      _goToMyProduct();
+                    }
+                  }),
               ListTile(
                   title: Text('Share',
                       style: TextStyle(fontWeight: FontWeight.w600)),
@@ -107,10 +162,116 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         backgroundColor: Colors.white,
-        body: _buildBody());
+        body: _buildHomePage());
   }
 
-  Widget _buildBody() {
+  Widget _buildHomePage() {
+    CollectionReference users =
+        FirebaseFirestore.instance.collection('SellerDetails');
+
+    return StreamBuilder(
+        stream: users.snapshots(),
+        builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+          if (snapshot.connectionState == ConnectionState.active) {
+            if (snapshot.hasData) {
+              List<DocumentSnapshot> documentList = snapshot.data.docs;
+              DocumentSnapshot document;
+
+              for (DocumentSnapshot documentSnapshot in documentList) {
+                if (documentSnapshot.data()['email'] == email) {
+                  document = documentSnapshot;
+                }
+              }
+              if (document != null) {
+                print('user document data: ${document.id}');
+                isProfileCompleted = true;
+
+                List<dynamic> list = document.data()['businessTypes'];
+                List<String> _businessTypesList = List();
+
+                for (int i = 0; i < list.length; i++) {
+                  _businessTypesList.add(list[i]);
+                }
+
+                _name = document.data()['name'];
+                _nChrac = _name[0];
+
+                _userDetails = UserDetails(
+                    email: document.data()['email'],
+                    name: document.data()['name'],
+                    shopName: document.data()['shopName'],
+                    shopAddress: document.data()['shopAddress'],
+                    idUrl: document.data()['idUrl'],
+                    businessTypes: _businessTypesList,
+                    isVerified: document.data()['isVerified']);
+                return _buildBody(
+                    _userDetails.shopName, _userDetails.shopAddress);
+              } else {
+                print('Docuemnt in null');
+                isProfileCompleted = false;
+                var box = Hive.box('docs');
+                String phone = box.get('phone');
+                return Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height,
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Cannot Find Your Profile',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w600),
+                        ),
+                        Container(
+                            child: Lottie.asset(
+                          'assets/raw/no_profile.json',
+                          height: 200,
+                        )),
+                        RaisedButton(
+                          onPressed: () {
+                            SchedulerBinding.instance.addPostFrameCallback((_) {
+                              Navigator.pushAndRemoveUntil(
+                                  context,
+                                  PageRoutes.fadeThrough(RegistrationScreen(
+                                    email: email,
+                                    phone: phone,
+                                  )),
+                                  (route) => false);
+                            });
+                          },
+                          color: kPrimaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              'Complete Profile',
+                              style: TextStyle(
+                                  color: Colors.white, fontSize: 18.0),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              }
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Something went wrong'));
+            } else {
+              return Center(child: CircularProgressIndicator());
+            }
+          } else {
+            return Center(child: CircularProgressIndicator());
+          }
+        });
+  }
+
+  Widget _buildBody(String name, String address) {
     return SafeArea(
       child: SingleChildScrollView(
         child: Column(
@@ -121,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(45),
                     bottomRight: Radius.circular(45)),
-                child: _buildHeader()),
+                child: _buildHeader(name, address)),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
@@ -189,7 +350,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String name, String address) {
     return Container(
       width: MediaQuery.of(context).size.width,
       color: Colors.deepPurple,
@@ -202,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: EdgeInsets.only(right: 16.0),
               child: Text(
-                'Restaurant Name',
+                '$name',
                 style: GoogleFonts.openSans(
                     fontSize: 32,
                     color: Colors.white,
@@ -210,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Text(
-              'Restaurant Address',
+              '$address',
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             Padding(
@@ -385,5 +546,21 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _goToMyProduct() {
+    Navigator.push(
+        context,
+        PageRoutes.sharedAxis(MyProductsScreen(
+          userDetails: _userDetails,
+        )));
+  }
+
+  void _goToProfile() {
+    Navigator.push(
+        context,
+        PageRoutes.sharedAxis(ProfileScreen(
+          userDetails: _userDetails,
+        )));
   }
 }

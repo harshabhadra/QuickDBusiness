@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive/hive.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:quickd_business/bloc/sign_up_bloc.dart';
 import 'package:quickd_business/model/error_model.dart';
@@ -65,7 +66,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<dynamic> _showVerifyEmailDialog(String email) {
+  Future<dynamic> _showVerifyEmailDialog(String email) async {
+    var box = Hive.box('docs');
+    await box.put('phone', phone);
     return showDialog(
         context: context,
         barrierDismissible: false,
@@ -88,7 +91,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _goToRegistration() {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-      return RegistrationScreen();
+      return RegistrationScreen(
+        email: email,
+        phone: phone,
+      );
     }));
   }
 
@@ -109,18 +115,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         iconTheme: IconThemeData(color: Colors.white),
       ),
       floatingActionButton: OpenContainer(
-        
         closedBuilder: (_, openContainer) {
           return FloatingActionButton(
             backgroundColor: Colors.white,
             onPressed: () {
-              // if (_key.currentState.validate()) {
-              //   print('All values are correct');
-              //   _key.currentState.save();
-              //   _validateAndSignUp(email, password);
-              // }
+              if (_key.currentState.validate()) {
+                print('All values are correct');
+                _key.currentState.save();
+                _validateAndSignUp(email, password);
+              }
               // _goToRegistration();
-              openContainer();
+              // openContainer();
             },
             child: Container(
               child: Icon(
@@ -131,7 +136,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
           );
         },
         openBuilder: (_, closeContainer) {
-          return RegistrationScreen();
+          return RegistrationScreen(
+            email: email,
+            phone: phone,
+          );
         },
         closedShape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
@@ -282,3 +290,4 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 }
+   

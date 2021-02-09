@@ -1,37 +1,210 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:quickd_business/bloc/add_product_bloc.dart';
+import 'package:quickd_business/model/product_model.dart';
+import 'package:quickd_business/model/user_details.dart';
 import 'package:quickd_business/utils/Constants.dart';
-import 'package:quickd_business/views/components/text_field_container.dart';
 
 class AddProductScreen extends StatefulWidget {
-  AddProductScreen({Key key}) : super(key: key);
+  final UserDetails userDetails;
+  final Product product;
+  final String docId;
+  AddProductScreen(
+      {Key key, @required this.userDetails, this.product, this.docId})
+      : super(key: key);
 
   @override
   _AddProductScreenState createState() => _AddProductScreenState();
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
-  String _categoryValue = 'Restaurant';
+  String _categoryValue;
   GlobalKey<FormState> _key = GlobalKey();
-  String _productName, _productDescription, _actualPrice, _sellPrice;
+  String _productName, _productDescription, _actualPrice, _sellPrice, _imgUrl;
+  List<String> _categories = List();
+  File _image;
+  final picker = ImagePicker();
+  bool isImageSelected = false;
+  Product _product;
+  final bloc = AddProductBloc();
+  bool isUpdate;
 
   @override
   void initState() {
-    // TODO: implement initState
+    if (widget.product != null) {
+      isUpdate = true;
+      _categories = [widget.product.category];
+      _categoryValue = widget.product.category;
+    } else {
+      isUpdate = false;
+      _categories = widget.userDetails.businessTypes;
+      _categoryValue = widget.userDetails.businessTypes[0];
+    }
     super.initState();
+  }
+
+  Future getImage() async {
+    final pickedFile = await picker.getImage(source: ImageSource.gallery);
+
+    setState(() {
+      if (pickedFile != null) {
+        _image = File(pickedFile.path);
+        isImageSelected = true;
+      } else {
+        isImageSelected = false;
+        print('No image selected.');
+        Fluttertoast.showToast(msg: 'Image Not Picked');
+      }
+    });
+  }
+
+  void _uploadProduct() {
+    if (_image == null) {
+      Fluttertoast.showToast(msg: 'Upload Product Image');
+    } else {
+      BuildContext dialogContext;
+      Dialog _loadingDialog = Dialog(
+        child: Container(
+          height: 90,
+          child: Center(
+              child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: CircularProgressIndicator(),
+          )),
+        ),
+      );
+      showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (context) {
+            dialogContext = context;
+            return _loadingDialog;
+          });
+      _product = Product(
+          category: _categoryValue,
+          productName: _productName,
+          productDes: _productDescription,
+          price: _actualPrice,
+          sellPrice: _sellPrice,
+          imgUrl: "",
+          restaurant: widget.userDetails.shopName,
+          rating: "",
+          isAvailable: true);
+
+      bloc.uploadProduct(_product, _image);
+      bloc.uploadStream.listen((event) {
+        setState(() {
+          Navigator.pop(dialogContext);
+          bool isUploaded = event;
+          if (isUploaded) {
+            _showResultDialog('Product Added Successfully');
+          } else {
+            _showResultDialog('Failed To Add Product');
+          }
+        });
+      });
+    }
+  }
+
+  void _updateProduct() {
+    BuildContext dialogContext;
+    Dialog _loadingDialog = Dialog(
+      child: Container(
+        height: 90,
+        child: Center(
+            child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: CircularProgressIndicator(),
+        )),
+      ),
+    );
+    showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (context) {
+          dialogContext = context;
+          return _loadingDialog;
+        });
+    _product = Product(
+        category: _categoryValue,
+        productName: _productName,
+        productDes: _productDescription,
+        price: _actualPrice,
+        sellPrice: _sellPrice,
+        imgUrl: widget.product.imgUrl,
+        restaurant: widget.userDetails.shopName,
+        rating: "",
+        isAvailable: true);
+
+    bloc.updateProduct(_product, isImageSelected, _image, widget.docId);
+    bloc.updateStream.listen((event) {
+      setState(() {
+        Navigator.pop(dialogContext);
+        bool isUploaded = event;
+
+        if (isUploaded) {
+          _showResultDialog('Product Updated Successfully');
+        } else {
+          _showResultDialog('Failed to update Product');
+        }
+      });
+    });
+  }
+
+  void _showResultDialog(String title) {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(
+              title,
+              style: TextStyle(color: Colors.green),
+            ),
+            actions: [
+              RaisedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                color: kPrimaryColor,
+                child: Text(
+                  'Ok',
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                ),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            ],
+          );
+        });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add Product'),
+        title: isUpdate ? Text('Product Details') : Text('Add Product'),
         backgroundColor: kPrimaryColor,
         elevation: 0,
       ),
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        child: Icon(Icons.upload_outlined),
+        onPressed: () {
+          if (_key.currentState.validate()) {
+            _key.currentState.save();
+            if (isUpdate) {
+              _updateProduct();
+            } else {
+              _uploadProduct();
+            }
+          }
+        },
+        child: isUpdate
+            ? Icon(Icons.update_outlined)
+            : Icon(Icons.upload_outlined),
       ),
       body: SafeArea(
         child: Container(
@@ -76,12 +249,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                     _categoryValue = newValue;
                                   });
                                 },
-                                items: <String>[
-                                  'Restaurant',
-                                  'Two',
-                                  'Free',
-                                  'Four'
-                                ].map<DropdownMenuItem<String>>((String value) {
+                                items: _categories
+                                    .map<DropdownMenuItem<String>>(
+                                        (String value) {
                                   return DropdownMenuItem<String>(
                                     value: value,
                                     child: Text(value),
@@ -101,6 +271,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               border: Border.all(color: Colors.deepPurple)),
                           child: TextFormField(
                             keyboardType: TextInputType.name,
+                            initialValue:
+                                isUpdate ? widget.product.productName : '',
                             decoration: InputDecoration(
                                 hintText: 'Product Name',
                                 icon: Icon(Icons.emoji_objects_outlined,
@@ -132,6 +304,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           child: TextFormField(
                             minLines: 3,
                             maxLines: 20,
+                            initialValue:
+                                isUpdate ? widget.product.productDes : '',
                             keyboardType: TextInputType.multiline,
                             decoration: InputDecoration(
                                 hintText: 'Product Description',
@@ -162,7 +336,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               borderRadius: BorderRadius.circular(29),
                               border: Border.all(color: Colors.deepPurple)),
                           child: TextFormField(
-                            keyboardType: TextInputType.name,
+                            keyboardType: TextInputType.number,
+                            initialValue: isUpdate ? widget.product.price : '',
                             decoration: InputDecoration(
                                 hintText: 'Actual Price',
                                 icon:
@@ -192,7 +367,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               borderRadius: BorderRadius.circular(29),
                               border: Border.all(color: Colors.deepPurple)),
                           child: TextFormField(
-                            keyboardType: TextInputType.name,
+                            keyboardType: TextInputType.number,
+                            initialValue:
+                                isUpdate ? widget.product.sellPrice : '',
                             decoration: InputDecoration(
                                 hintText: 'Sell Price',
                                 icon:
@@ -213,30 +390,86 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             },
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            print('uploaded image no.');
-                          },
-                          child: Container(
-                            margin: EdgeInsets.only(top: 16.0, bottom: 60.0),
-                            height: 200.0,
-                            width: MediaQuery.of(context).size.width,
-                            decoration: BoxDecoration(
-                                color: Colors.white,
-                                border: Border.all(color: Colors.grey)),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.cloud_upload_outlined,
-                                  size: 90,
-                                  color: Colors.grey,
-                                ),
-                                Text('Tap To Upload Image of the Product')
-                              ],
-                            ),
-                          ),
-                        ),
+                        isUpdate
+                            ? GestureDetector(
+                                onTap: () {
+                                  print('uploaded image no.');
+                                  getImage();
+                                },
+                                child: isImageSelected
+                                    ? Container(
+                                        margin: EdgeInsets.only(
+                                            top: 16.0, bottom: 60.0),
+                                        height: 200.0,
+                                        width:
+                                            MediaQuery.of(context).size.width,
+                                        decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            border:
+                                                Border.all(color: Colors.grey)),
+                                        child: Image.file(
+                                          _image,
+                                          fit: BoxFit.fill,
+                                        ))
+                                    : Container(
+                                        margin: EdgeInsets.only(
+                                            top: 16.0, bottom: 60.0),
+                                        height: 200.0,
+                                        width:
+                                            MediaQuery.of(context).size.width,
+                                        decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            border:
+                                                Border.all(color: Colors.grey)),
+                                        child: Image.network(
+                                          widget.product.imgUrl,
+                                          fit: BoxFit.fill,
+                                        )))
+                            : GestureDetector(
+                                onTap: () {
+                                  print('uploaded image no.');
+                                  getImage();
+                                },
+                                child: isImageSelected
+                                    ? Container(
+                                        margin: EdgeInsets.only(
+                                            top: 16.0, bottom: 60.0),
+                                        height: 200.0,
+                                        width:
+                                            MediaQuery.of(context).size.width,
+                                        decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            border:
+                                                Border.all(color: Colors.grey)),
+                                        child: Image.file(
+                                          _image,
+                                          fit: BoxFit.fill,
+                                        ))
+                                    : Container(
+                                        margin: EdgeInsets.only(
+                                            top: 16.0, bottom: 60.0),
+                                        height: 200.0,
+                                        width:
+                                            MediaQuery.of(context).size.width,
+                                        decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            border:
+                                                Border.all(color: Colors.grey)),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.cloud_upload_outlined,
+                                              size: 90,
+                                              color: Colors.grey,
+                                            ),
+                                            Text(
+                                                'Tap To Upload Image of the Product')
+                                          ],
+                                        ),
+                                      ),
+                              ),
                       ],
                     ),
                   ),

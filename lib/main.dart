@@ -3,7 +3,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive/hive.dart';
 import 'package:quickd_business/views/ui/splash_ui.dart';
+import 'package:path_provider/path_provider.dart' as path_provider;
+
+List<Box> boxList = [];
+Future<List<Box>> _openBox() async {
+  var dir = await path_provider.getApplicationDocumentsDirectory();
+  Hive.init(dir.path);
+  var docBox = await Hive.openBox("docs");
+  boxList.add(docBox);
+  return boxList;
+}
 
 void main() {
   LicenseRegistry.addLicense(() async* {
@@ -12,10 +23,16 @@ void main() {
     yield LicenseEntryWithLineBreaks(['google_fonts'], license);
   });
   WidgetsFlutterBinding.ensureInitialized();
+  _openBox();
   runApp(MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   final Future<FirebaseApp> _initialization = Firebase.initializeApp();
 
   @override
@@ -46,5 +63,11 @@ class MyApp extends StatelessWidget {
             ));
           }
         });
+  }
+
+  @override
+  void dispose() {
+    Hive.close();
+    super.dispose();
   }
 }
